@@ -8,7 +8,15 @@ oauth: ""
 #repo: "platform"
 
 # Optional: Size of the avatars in pixels.
-# avatarSize: 100
+#avatarSize: 100
+
+#  Optional: Template file to use
+#template: "template.md"
+
+# Optional: Cut circle from image
+# If you use this, PNG instead of JPG is used!
+# Make sure to set the path accordingly in the template file
+#cropCircleAvatar: true
 
 # Optional: Contributors excluded from the generated HTML
 #excluded:

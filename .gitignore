@@ -1,5 +1,5 @@
 /.idea
-/imgCache/*
-!/imgCache/.gitkeep
+/imgCache
 /output
 config.yaml
+*.zip

@@ -16,16 +16,19 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/kkyr/fig"
 	"github.com/otiai10/copy"
+	"github.com/po3rin/smartcircle"
 	"golang.org/x/image/draw"
 	"golang.org/x/oauth2"
 )
 
 type config struct {
-	OAuth      string   `fig:"oauth" validate:"required"`
-	Org        string   `fig:"org" default:"shopware"`
-	Repo       string   `fig:"repo" default:"platform"`
-	Excluded   []string `fig:"excluded" default:"[]"`
-	AvatarSize int      `fig:"avatarSize" default:"100"`
+	OAuth            string   `fig:"oauth" validate:"required"`
+	Org              string   `fig:"org" default:"shopware"`
+	Repo             string   `fig:"repo" default:"platform"`
+	Template         string   `fig:"template" default:"template.gohtml"`
+	Excluded         []string `fig:"excluded" default:"[]"`
+	AvatarSize       int      `fig:"avatarSize" default:"100"`
+	CropCircleAvatar bool     `fig:"cropCircleAvatar" default:"false"`
 }
 
 type swagContributor struct {
@@ -98,6 +101,12 @@ func main() {
 	fmt.Println("Number of contributors: ", len(allContribs))
 	fmt.Println("Number of contributors not excluded: ", len(scs))
 	fmt.Println("Downloading avatars")
+	_ = os.RemoveAll("imgCache")
+	err = os.MkdirAll("imgCache", 0755)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 	for _, sc := range scs {
 		err := downloadFile(sc.AvatarURL, sc.Name)
 		if err != nil {
@@ -106,9 +115,9 @@ func main() {
 		}
 	}
 
-	fmt.Println("Building HTML output")
+	fmt.Println("Building output")
 
-	tmpl := template.Must(template.ParseFiles("template.gohtml"))
+	tmpl := template.Must(template.ParseFiles(cfg.Template))
 	buf := new(bytes.Buffer)
 	err = tmpl.Execute(buf, PageData{
 		Org:          cfg.Org,
@@ -126,7 +135,7 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	err = ioutil.WriteFile("output/contributors.html", buf.Bytes(), 0666)
+	err = ioutil.WriteFile(fmt.Sprintf("output/%s", cfg.Template), buf.Bytes(), 0666)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -136,6 +145,7 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	_ = os.RemoveAll("imgCache")
 	fmt.Println("Done\nOutput is in folder output")
 }
 
@@ -176,6 +186,21 @@ func downloadFile(url, name string) error {
 	rect := image.Rect(0, 0, cfg.AvatarSize, cfg.AvatarSize)
 	img := image.NewRGBA(rect)
 	draw.BiLinear.Scale(img, rect, srcImg, srcImg.Bounds(), draw.Over, nil)
+	if cfg.CropCircleAvatar {
+		c, err := smartcircle.NewCropper(smartcircle.Params{Src: img})
+		if err != nil {
+			return err
+		}
+		cImg, err := c.CropCircle()
+		if err != nil {
+			return err
+		}
+		buf := new(bytes.Buffer)
+		if err := png.Encode(buf, cImg); err != nil {
+			return err
+		}
+		return ioutil.WriteFile(fmt.Sprintf("imgCache/%s.png", name), buf.Bytes(), 0666)
+	}
 	buf := new(bytes.Buffer)
 	if err := jpeg.Encode(buf, img, &jpeg.Options{Quality: 90}); err != nil {
 		return err

@@ -1,0 +1,5 @@
+/.idea
+/imgCache/*
+!/imgCache/.gitkeep
+/output
+config.yaml
